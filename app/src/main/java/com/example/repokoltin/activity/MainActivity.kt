@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.telecom.Call
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -27,6 +29,8 @@ import io.reactivex.schedulers.Schedulers
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import kotlinx.android.synthetic.main.activity_main2.*
+import retrofit2.Callback
+import retrofit2.Response
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -55,6 +59,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
             LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         setupRepoFavo()
         setupRepoSearch()
+
+        setListFavo()
 
         txtCancel.setOnClickListener(this)
         txtLogout.setOnClickListener(this)
@@ -90,26 +96,51 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
     private fun convertJsonToList(json : JsonElement) : MutableList<Repo>{
         val list: MutableList<Repo> = ArrayList()
         val jsonArray = json.asJsonObject["items"].asJsonArray
+        Log.e("TAG", "json $json" )
         for (i in 0 until jsonArray.size()) {
-            val fullName = jsonArray[i].asJsonObject["name"].asString
-            val description = jsonArray[i].asJsonObject["description"].asString
-            val stars = jsonArray[i].asJsonObject["stargazers_count"].asString
-            val forks = jsonArray[i].asJsonObject["forks_count"].asString
+            var fullName = "Unknow"
+            var des = "Unknow"
+            var stars = "Unknow"
+            var forks = "Unknow"
+            var lang = "Unknow"
+
+            try {
+                fullName = jsonArray[i].asJsonObject["name"].asString
+            } catch (e: Exception) {
+                Log.e("TAG", "Exception $e")
+            }
+            try {
+                des = jsonArray[i].asJsonObject["description"].asString
+            } catch (e: Exception) {
+                Log.e("TAG", "Exception $e")
+            }
+            try {
+                stars = jsonArray[i].asJsonObject["stargazers_count"].asString
+            } catch (e: Exception) {
+                Log.e("TAG", "Exception $e")
+            }
+            try {
+                forks = jsonArray[i].asJsonObject["forks_count"].asString
+            } catch (e: Exception) {
+                Log.e("TAG", "Exception $e")
+            }
             var language: String? = "Unknown"
             try {
                 language = jsonArray[i].asJsonObject["language"].asString
             } catch (e: Exception) {
                 Log.e("TAG", "Exception $e")
             }
-            val repo = Repo(fullName, description, stars, forks, language!!)
+            val repo = Repo(fullName, des, stars, forks, language!!)
             list.add(repo)
+            Log.e("TAG", "list size ${list.size}")
+
         }
         return list
     }
 
     override fun onResume() {
         super.onResume()
-        setListFavo()
+//        setListFavo()
 
     }
 
@@ -145,24 +176,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
                     val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
                     list.add(repoRealm)
                 }
-                for (test in list ) {
-                    Log.e("TAG", "id  ${test.id}  : name ${test.fullname}")
-                }
                 observer.onSuccess(list)
             }
         }.subscribeOn(Schedulers.io())
     }
 
     private fun setListFavo(){
-        val result = realm?.where(RepoRealm::class.java)?.findAll();
-        var list = arrayListOf<RepoRealm>()
-        result?.forEach {
-            val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
-            list.add(repoRealm)
-            Log.e("TAG", "id ${it.id} : ${it.fullname}")
-        }
+        Log.e("TAG", "onCreate")
+        progressBar.visibility = View.VISIBLE;
+        Handler().postDelayed(Runnable {
+            progressBar.visibility = View.GONE
+            val result = realm?.where(RepoRealm::class.java)?.findAll();
+            var list = arrayListOf<RepoRealm>()
+            result?.forEach {
+                val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
+                list.add(repoRealm)
+                Log.e("TAG", "id ${it.id} : ${it.fullname}")
+            }
 
-        adapterRepoFavo?.setList(list)
+            adapterRepoFavo?.setList(list)
+        }, 1000)
+
     }
 
     private fun displayDataRealm(): SingleObserver<List<RepoRealm>> {
@@ -192,7 +226,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
 //                edSearch.setText("")
                 adapterRepoSearch?.setList(arrayListOf())
                 adapterRepoFavo?.setList(arrayListOf())
-//                progressBar.visibility = View.VISIBLE;
                 recyclerView.visibility = View.GONE
                 txtMostPopular.visibility = View.GONE
                 txtMostRecent.visibility = View.GONE
@@ -221,12 +254,64 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
                 recyclerView.visibility = View.GONE
                 progressBar.visibility = View.VISIBLE
                 val getRepo: Single<JsonElement> =
-                    Client.createAPI().getRepoUpdate(edSearch.text.toString().trim(), "updated", "desc")
+                    Client.createAPI().getRepoUpdate("rx", "updated", "desc")
                 getRepo.map<List<Repo>> { jsonElement ->
                     convertJsonToList(jsonElement)
                 }.subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(getListRepo())
+
+
+//                val client = Client.createAPI().getRepoUpdateVer2("Rx", "updated", "desc")
+//                client.enqueue(object : Callback<JsonElement> {
+//                    override fun onFailure(call: retrofit2.Call<JsonElement>, t: Throwable) {
+//                    }
+//
+//                    override fun onResponse(call: retrofit2.Call<JsonElement>, json: Response<JsonElement>) {
+//                        val jsonArray = json.body()!!.asJsonObject["items"].asJsonArray
+//                        Log.e("TAG", "json $json" )
+//                        var list = arrayListOf<Repo>()
+//                        for (i in 0 until jsonArray.size()) {
+//                            var fullName = "Unknow"
+//                            var des = "Unknow"
+//                            var stars = "Unknow"
+//                            var forks = "Unknow"
+//                            var lang = "Unknow"
+//
+//                            try {
+//                                fullName = jsonArray[i].asJsonObject["name"].asString
+//                            } catch (e: Exception) {
+//                                Log.e("TAG", "Exception $e")
+//                            }
+//                            try {
+//                                des = jsonArray[i].asJsonObject["description"].asString
+//                            } catch (e: Exception) {
+//                                Log.e("TAG", "Exception $e")
+//                            }
+//                            try {
+//                                stars = jsonArray[i].asJsonObject["stargazers_count"].asString
+//                            } catch (e: Exception) {
+//                                Log.e("TAG", "Exception $e")
+//                            }
+//                            try {
+//                                forks = jsonArray[i].asJsonObject["forks_count"].asString
+//                            } catch (e: Exception) {
+//                                Log.e("TAG", "Exception $e")
+//                            }
+//
+//                            var language: String? = "Unknown"
+//                            try {
+//                                language = jsonArray[i].asJsonObject["language"].asString
+//                            } catch (e: Exception) {
+//                                Log.e("TAG", "Exception $e")
+//                            }
+//                            val repo = Repo(fullName, des, stars, forks, language!!)
+//                            list.add(repo)
+//                            Log.e("TAG", "list size ${list.size}")
+//                    }
+//
+//                }
+//            })
             }
             R.id.txtMostPopular ->{
                 recyclerView.visibility = View.GONE

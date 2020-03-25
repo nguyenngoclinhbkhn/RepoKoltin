@@ -104,6 +104,7 @@ class DetailActivity : AppCompatActivity() {
             }
 
             override fun onError(e: Throwable) {
+                Log.e("TAG", "Error $e")
             }
 
         }

@@ -24,5 +24,7 @@ interface API {
                     @Query("order") desc: String): Single<JsonElement>
 
     @GET("repositories?")
-    fun getUserTest(@Query("q") user: String): Call<JsonElement>
+    fun getRepoUpdateVer2(@Query("q") nameRepo: String,
+                      @Query("sort") update: String,
+                      @Query("order") desc: String): Call<JsonElement>
 }
