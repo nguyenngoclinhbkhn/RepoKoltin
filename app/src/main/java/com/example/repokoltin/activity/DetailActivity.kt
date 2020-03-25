@@ -3,6 +3,7 @@ package com.example.repokoltin.activity
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import com.example.repokoltin.R
 import com.example.repokoltin.Utils
 import com.example.repokoltin.model.Repo
@@ -36,14 +37,28 @@ class DetailActivity : AppCompatActivity() {
         getDataFromId(id).observeOn(AndroidSchedulers.mainThread()).subscribe(displayData())
 
         txtDelete.setOnClickListener {
-            realm.executeTransaction {
+            realm.executeTransactionAsync {
                 val realmResult: RealmResults<RepoRealm>? =
                     it.where(RepoRealm::class.java).equalTo("id", id).findAll()
                 realmResult?.deleteAllFromRealm()
+
+                val config = RealmConfiguration.Builder()
+                    .name("repo.db")
+                    .schemaVersion(1)
+                    .deleteRealmIfMigrationNeeded()
+                    .build();
+                val realm = Realm.getInstance(config)
+                val result = realm?.where(RepoRealm::class.java)?.findAll();
+                var list = arrayListOf<RepoRealm>()
+                result?.forEach {
+                    val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
+                    list.add(repoRealm)
+                }
                 startActivity(Intent(this@DetailActivity, MainActivity::class.java))
                 finish()
             }
         }
+
     }
 
     private fun getDataFromId(id: Int): Single<RepoRealm> {
@@ -58,7 +73,7 @@ class DetailActivity : AppCompatActivity() {
                 val result = realm?.where(RepoRealm::class.java)?.equalTo("id", id)!!.findFirst();
                 observer.onSuccess(
                     RepoRealm(
-                        id = result.id,
+                        id = id,
                         fullname = result.fullname,
                         des = result.des,
                         star = result.star,

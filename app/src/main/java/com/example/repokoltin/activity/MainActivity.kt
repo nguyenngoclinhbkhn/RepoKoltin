@@ -48,7 +48,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
             .deleteRealmIfMigrationNeeded()
             .build();
         realm = Realm.getInstance(config)
-
+//        getDataFromRealm2().observeOn(AndroidSchedulers.mainThread())
+//            .subscribe(displayDataRealm())
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         recyclerViewFavo.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
@@ -108,8 +109,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
 
     override fun onResume() {
         super.onResume()
-        getDataFromRealm2().observeOn(AndroidSchedulers.mainThread())
-            .subscribe(displayDataRealm())
+        setListFavo()
+
     }
 
 
@@ -144,20 +145,33 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
                     val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
                     list.add(repoRealm)
                 }
+                for (test in list ) {
+                    Log.e("TAG", "id  ${test.id}  : name ${test.fullname}")
+                }
                 observer.onSuccess(list)
             }
         }.subscribeOn(Schedulers.io())
     }
 
+    private fun setListFavo(){
+        val result = realm?.where(RepoRealm::class.java)?.findAll();
+        var list = arrayListOf<RepoRealm>()
+        result?.forEach {
+            val repoRealm = RepoRealm(it.id,it.fullname, it.des, it.star, it.fork, it.lang);
+            list.add(repoRealm)
+            Log.e("TAG", "id ${it.id} : ${it.fullname}")
+        }
+
+        adapterRepoFavo?.setList(list)
+    }
+
     private fun displayDataRealm(): SingleObserver<List<RepoRealm>> {
         return object : SingleObserver<List<RepoRealm>> {
             override fun onSuccess(t: List<RepoRealm>) {
+                recyclerViewFavo.visibility = View.VISIBLE
                 adapterRepoFavo?.setList(t)
                 progressBar.visibility = View.GONE
-                recyclerViewFavo.visibility = View.VISIBLE
-                for (test in t ) {
-                    Log.e("TAG", "id  ${test.id}  : name ${test.fullname}")
-                }
+
             }
 
             override fun onSubscribe(d: Disposable) {
@@ -175,16 +189,18 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
     override fun onClick(v: View) {
         when (v.id) {
             R.id.txtCancel -> {
-                edSearch.setText("")
+//                edSearch.setText("")
                 adapterRepoSearch?.setList(arrayListOf())
-                progressBar.visibility = View.VISIBLE;
+                adapterRepoFavo?.setList(arrayListOf())
+//                progressBar.visibility = View.VISIBLE;
                 recyclerView.visibility = View.GONE
                 txtMostPopular.visibility = View.GONE
                 txtMostRecent.visibility = View.GONE
                 txtLogout.visibility = View.VISIBLE
-                recyclerViewFavo.visibility = View.GONE
-                getDataFromRealm2().observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(displayDataRealm())
+                recyclerViewFavo.visibility = View.VISIBLE
+                setListFavo()
+//                getDataFromRealm2().observeOn(AndroidSchedulers.mainThread())
+//                    .subscribe(displayDataRealm())
             }
             R.id.txtLogout -> {
                 val config = RealmConfiguration.Builder()
@@ -267,7 +283,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
 
     override fun OnRepoClicked(repo: RepoRealm?) {
         val intent = Intent(this, DetailActivity::class.java)
+        adapterRepoFavo?.setList(arrayListOf())
         intent.putExtra(Utils.KEY, repo?.id.toString())
+        Log.e("TAG", "id " + repo?.id.toString())
         startActivity(intent)
         finish()
     }
